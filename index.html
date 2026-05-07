@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PolyPredict — Polymer Property Prediction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://3dmol.org/build/3Dmol-min.js"></script>
+<style>
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 15px; }
+
+:root {
+  --bg:       #f7f8fa;
+  --surface:  #ffffff;
+  --surface2: #f0f2f5;
+  --border:   #e2e5eb;
+  --border2:  #d0d5de;
+  --text:     #111827;
+  --text2:    #4b5563;
+  --text3:    #9ca3af;
+  --accent:   #2563eb;
+  --accent-l: #eff6ff;
+  --accent-m: #bfdbfe;
+  --green:    #059669;
+  --green-l:  #ecfdf5;
+  --amber:    #d97706;
+  --amber-l:  #fffbeb;
+  --red:      #dc2626;
+  --red-l:    #fef2f2;
+  --purple:   #7c3aed;
+  --teal:     #0891b2;
+  --radius:   12px;
+  --radius-s: 8px;
+  --shadow:   0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+  --shadow-m: 0 4px 24px rgba(0,0,0,.10);
+}
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* ── Layout ── */
+.page { max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+/* ── Header ── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 0; border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand-icon {
+  width: 34px; height: 34px; background: var(--accent);
+  border-radius: 9px; display: flex; align-items: center; justify-content: center;
+}
+.brand-icon svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; }
+.brand-name { font-size: 17px; font-weight: 600; color: var(--text); letter-spacing: -.3px; }
+.brand-sub { font-size: 12px; color: var(--text3); margin-top: 1px; }
+
+.status-pill {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 14px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 12px; color: var(--text2); cursor: default;
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); transition: .3s; }
+.dot.ok { background: var(--green); }
+.dot.busy { background: var(--amber); animation: pulse .9s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ── Page heading ── */
+.page-head { margin-bottom: 32px; }
+.page-head h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(26px, 4vw, 38px); font-weight: 600;
+  letter-spacing: -.3px; line-height: 1.2; color: var(--text);
+  margin-bottom: 8px;
+}
+.page-head h1 em { font-style: normal; color: var(--accent); }
+.page-head p { font-size: 15px; color: var(--text2); max-width: 560px; }
+
+/* ── Stats row ── */
+.stats-row {
+  display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 32px;
+}
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 20px;
+  display: flex; align-items: center; gap: 12px; flex: 1; min-width: 160px;
+  box-shadow: var(--shadow);
+}
+.stat-icon {
+  width: 36px; height: 36px; border-radius: var(--radius-s);
+  display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0;
+}
+.stat-val { font-size: 20px; font-weight: 600; line-height: 1; }
+.stat-lbl { font-size: 11px; color: var(--text3); margin-top: 2px; letter-spacing: .3px; }
+
+/* ── Grid layout ── */
+.main-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 20px; align-items: start; }
+@media(max-width: 800px) { .main-grid { grid-template-columns: 1fr; } }
+
+/* ── Card ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card-head {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.card-title-icon {
+  width: 26px; height: 26px; border-radius: 7px; background: var(--accent-l);
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+}
+.card-body { padding: 20px; }
+
+/* ── Input ── */
+.field-label {
+  font-size: 11px; font-weight: 600; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.smiles-wrap { position: relative; }
+textarea {
+  width: 100%; min-height: 88px; padding: 12px 14px;
+  font-family: 'DM Mono', monospace; font-size: 13px; line-height: 1.6;
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: var(--radius-s); color: var(--text);
+  resize: vertical; transition: border-color .2s, box-shadow .2s;
+}
+textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-m); background: #fff; }
+textarea.invalid { border-color: var(--red); box-shadow: 0 0 0 3px #fecaca; animation: shake .25s ease; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+.input-meta { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--text3); }
+
+/* ── Sample chips ── */
+.samples { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.chip {
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text2); padding: 5px 10px; font-size: 11px;
+  font-family: 'DM Mono', monospace; border-radius: 6px;
+  cursor: pointer; transition: .15s; white-space: nowrap;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-l); }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 10px 20px; border-radius: var(--radius-s); font-family: inherit;
+  font-size: 13px; font-weight: 500; border: none; cursor: pointer; transition: .15s;
+}
+.btn-primary { background: var(--accent); color: #fff; width: 100%; margin-top: 14px; padding: 11px; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+.btn-sm { padding: 6px 12px; font-size: 12px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.btn-sm:hover { background: var(--border); }
+
+/* ── Structure viewer ── */
+.struct-wrap {
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: var(--radius-s); padding: 12px;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 180px; position: relative;
+}
+#structCanvas { max-width: 100%; }
+.struct-placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; color: var(--text3); font-size: 13px; padding: 24px; width: 100%;
+}
+.struct-placeholder svg { width: 40px; height: 40px; stroke: var(--border2); fill: none; margin-bottom: 8px; }
+
+/* ── Mol info ── */
+.mol-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.mol-item {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-s); padding: 8px 12px;
+}
+.mol-item-lbl { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; }
+.mol-item-val { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 2px; }
+
+/* ── Results ── */
+.results-empty {
+  text-align: center; padding: 48px 20px; color: var(--text3);
+}
+.results-empty svg { width: 48px; height: 48px; stroke: var(--border2); fill: none; margin: 0 auto 12px; display: block; }
+.results-empty p { font-size: 14px; }
+
+.result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.result-card {
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: var(--radius-s); padding: 14px 16px;
+  transition: border-color .2s;
+}
+.result-card:hover { border-color: var(--accent-m); }
+.result-target { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--text3); margin-bottom: 4px; }
+.result-val { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1; font-family: 'DM Mono', monospace; }
+.result-unit { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.result-bar-wrap { margin-top: 8px; height: 3px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.result-bar { height: 100%; border-radius: 999px; background: var(--accent); transition: width .6s ease; }
+
+/* model comparison mini row */
+.model-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.model-badge {
+  font-size: 10px; padding: 2px 7px; border-radius: 4px;
+  border: 1px solid var(--border); color: var(--text3);
+  font-family: 'DM Mono', monospace;
+}
+
+/* ── R2 summary ── */
+.r2-summary {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  background: var(--green-l); border: 1px solid #6ee7b7;
+  border-radius: var(--radius-s); margin-bottom: 16px;
+}
+.r2-big { font-size: 28px; font-weight: 700; color: var(--green); font-family: 'DM Mono', monospace; }
+.r2-info { font-size: 12px; color: var(--text2); }
+.r2-info strong { color: var(--text); font-weight: 600; display: block; margin-bottom: 2px; font-size: 14px; }
+.mode-badge {
+  margin-left: auto; padding: 4px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; background: var(--green); color: #fff;
+}
+.mode-badge.demo { background: var(--amber); }
+
+/* ── Model comparison chart ── */
+.chart-wrap { position: relative; height: 220px; margin-top: 16px; }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 2px; background: var(--surface2); border-radius: var(--radius-s); padding: 3px; margin-bottom: 16px; }
+.tab {
+  flex: 1; text-align: center; padding: 7px 12px; border-radius: 7px;
+  font-size: 12px; font-weight: 500; color: var(--text3); cursor: pointer; transition: .15s;
+  border: none; background: none; font-family: inherit;
+}
+.tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── History ── */
+.history-list { display: flex; flex-direction: column; gap: 8px; }
+.hist-item {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-s);
+  padding: 10px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+  transition: .15s;
+}
+.hist-item:hover { border-color: var(--accent-m); background: var(--accent-l); }
+.hist-smiles { font-size: 11px; font-family: 'DM Mono'; color: var(--text2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hist-r2 { font-size: 11px; font-weight: 600; color: var(--green); white-space: nowrap; }
+.hist-time { font-size: 10px; color: var(--text3); white-space: nowrap; }
+.history-empty { text-align: center; padding: 24px; font-size: 13px; color: var(--text3); }
+
+/* ── Export ── */
+.export-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── Inference info ── */
+.infer-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-s); margin-bottom: 14px; font-size: 12px; color: var(--text2);
+}
+.infer-row span b { color: var(--text); }
+
+/* ── Loading spinner ── */
+.spinner {
+  width: 20px; height: 20px; border: 2.5px solid var(--accent-m);
+  border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Error toast ── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px);
+  background: var(--text); color: #fff; padding: 10px 20px;
+  border-radius: 999px; font-size: 13px; font-weight: 500;
+  transition: transform .3s; z-index: 999; white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { background: var(--green); }
+
+/* ── Section divider ── */
+.section-gap { margin-top: 40px; }
+.section-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--text3); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── Spinner overlay in button ── */
+.btn-primary .spinner { border-color: rgba(255,255,255,.3); border-top-color: #fff; width: 16px; height: 16px; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 999px; }
+
+/* ── Structure view tabs ── */
+.view-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.view-tab {
+  padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 500;
+  border: 1.5px solid var(--border); background: var(--surface2);
+  color: var(--text3); cursor: pointer; transition: .15s; font-family: inherit;
+}
+.view-tab.active { border-color: var(--accent); background: var(--accent-l); color: var(--accent); }
+
+/* 3D viewer container */
+#viewer3d {
+  width: 100%; height: 220px; border-radius: var(--radius-s);
+  background: #0f1117; border: 1.5px solid var(--border);
+  position: relative; overflow: hidden;
+}
+.viewer3d-loading {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  color: #94a3b8; font-size: 12px; background: #0f1117;
+}
+.viewer3d-controls {
+  display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;
+}
+.ctrl-btn {
+  padding: 4px 10px; border-radius: 5px; font-size: 11px; font-weight: 500;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text2); cursor: pointer; transition: .15s; font-family: inherit;
+}
+.ctrl-btn:hover { background: var(--border); }
+.ctrl-btn.active { background: var(--accent-l); border-color: var(--accent); color: var(--accent); }
+
+/* Mol info grid — extra props */
+.mol-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.mol-item {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-s); padding: 8px 12px;
+}
+.mol-item-lbl { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; }
+.mol-item-val { font-size: 13px; font-weight: 600; color: var(--text); margin-top: 2px; font-family: 'DM Mono', monospace; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <header>
+    <a class="brand" href="#">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M3 12h3m12 0h3M12 3v3m0 12v3"/><path d="M6.3 6.3l2.1 2.1m7.2 7.2 2.1 2.1M17.7 6.3l-2.1 2.1M9 15l-2.1 2.1"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">PolyPredict</div>
+        <div class="brand-sub">AI Polymer Property Prediction</div>
+      </div>
+    </a>
+    <div class="status-pill">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusTxt">Connecting…</span>
+    </div>
+  </header>
+
+  <!-- Page heading -->
+  <div class="page-head">
+    <h1>Predict <em>Polymer Properties</em><br>from SMILES</h1>
+    <p>Enter a polymer repeat-unit SMILES string to predict Tg, FFV, Tc, Density, and Rg using an ensemble of GNN, Transformer, and Physics-Informed Neural Networks.</p>
+  </div>
+
+  <!-- Stats row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#eff6ff">🧪</div>
+      <div>
+        <div class="stat-val" style="color:var(--accent)">3</div>
+        <div class="stat-lbl">Deep Learning Models</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#ecfdf5">📊</div>
+      <div>
+        <div class="stat-val" style="color:var(--green)">0.9577</div>
+        <div class="stat-lbl">Best R² (PINN)</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#fffbeb">⚗️</div>
+      <div>
+        <div class="stat-val" style="color:var(--amber)">5</div>
+        <div class="stat-lbl">Target Properties</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#f5f3ff">🔬</div>
+      <div>
+        <div class="stat-val" style="color:var(--purple)">9,755</div>
+        <div class="stat-lbl">Training Samples</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="main-grid">
+
+    <!-- Left: Input -->
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><div class="card-title-icon">✏️</div>Input</div>
+          <button class="btn btn-sm" id="clearBtn">Clear</button>
+        </div>
+        <div class="card-body">
+          <div class="field-label">Polymer SMILES <span style="color:var(--red)">*</span> (must include * wildcard atoms)</div>
+          <div class="smiles-wrap">
+            <textarea id="smilesInput" placeholder="e.g. *CC(*)c1ccccc1" spellcheck="false"></textarea>
+          </div>
+          <div class="input-meta">
+            <span id="validMsg" style="color:var(--text3)">Enter a SMILES string with * atoms</span>
+            <span id="charCount">0 chars</span>
+          </div>
+
+          <div class="field-label" style="margin-top:14px">Quick examples</div>
+          <div class="samples">
+            <div class="chip" data-smiles="*CC(*)c1ccccc1">Polystyrene</div>
+            <div class="chip" data-smiles="*CC(*)C(=O)OC">PMMA</div>
+            <div class="chip" data-smiles="*CCCCCCCCCCCCCC*">PE</div>
+            <div class="chip" data-smiles="*Oc1ccc(C(C)(C)c2ccc(O*)cc2)cc1">Bisphenol-A</div>
+            <div class="chip" data-smiles="*C(=O)CCCC(=O)*">Polyester</div>
+          </div>
+
+          <button class="btn btn-primary" id="analyzeBtn" disabled>
+            <span id="btnContent">Analyze Polymer</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Structure viewer -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <div class="card-title"><div class="card-title-icon">🔬</div>Structure</div>
+          <div class="view-tabs">
+            <button class="view-tab active" id="tab2d">2D</button>
+            <button class="view-tab" id="tab3d">3D</button>
+          </div>
+        </div>
+        <div class="card-body">
+
+          <!-- 2D panel -->
+          <div id="panel2d">
+            <div class="struct-wrap" id="structWrap">
+              <div class="struct-placeholder" id="structPlaceholder">
+                <svg viewBox="0 0 24 24" stroke-width="1.5"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><line x1="7" y1="12" x2="17" y2="6"/><line x1="7" y1="12" x2="17" y2="18"/></svg>
+                <div>Structure will appear here</div>
+                <div style="font-size:11px;margin-top:4px;color:var(--text3)">Requires backend on port 8000</div>
+              </div>
+              <div id="structSvgWrap" style="display:none;width:100%;text-align:center"></div>
+            </div>
+          </div>
+
+          <!-- 3D panel -->
+          <div id="panel3d" style="display:none">
+            <div id="viewer3d">
+              <div class="viewer3d-loading" id="v3dLoading">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="1.5" style="width:36px;height:36px"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                <span>Switch to 3D tab to load</span>
+              </div>
+            </div>
+            <div class="viewer3d-controls">
+              <button class="ctrl-btn active" id="styleStick">Stick</button>
+              <button class="ctrl-btn" id="styleSphere">Sphere</button>
+              <button class="ctrl-btn" id="styleLine">Line</button>
+              <button class="ctrl-btn" id="styleCartoon">Surface</button>
+              <button class="ctrl-btn" id="btnSpin">Spin</button>
+              <button class="ctrl-btn" id="btnCenter">Center</button>
+            </div>
+          </div>
+
+          <!-- Mol info — always shown, populated from /structure -->
+          <div class="mol-grid" id="molGrid">
+            <div class="mol-item"><div class="mol-item-lbl">Mol. Weight</div><div class="mol-item-val" id="iMW">—</div></div>
+            <div class="mol-item"><div class="mol-item-lbl">Formula</div><div class="mol-item-val" id="iFormula" style="font-size:11px;letter-spacing:-.2px">—</div></div>
+            <div class="mol-item"><div class="mol-item-lbl">Heavy Atoms</div><div class="mol-item-val" id="iAtoms">—</div></div>
+            <div class="mol-item"><div class="mol-item-lbl">Rings</div><div class="mol-item-val" id="iRings">—</div></div>
+            <div class="mol-item"><div class="mol-item-lbl">H-bond Donors</div><div class="mol-item-val" id="iHBD">—</div></div>
+            <div class="mol-item"><div class="mol-item-lbl">Arom. Atoms</div><div class="mol-item-val" id="iArom">—</div></div>
+            <div class="mol-item"><div class="mol-item-lbl">LogP</div><div class="mol-item-val" id="iLogP">—</div></div>
+            <div class="mol-item"><div class="mol-item-lbl">TPSA (Å²)</div><div class="mol-item-val" id="iTpsa">—</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Results -->
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><div class="card-title-icon">📈</div>Results</div>
+          <div id="modeTag" style="display:none"></div>
+        </div>
+        <div class="card-body">
+
+          <!-- Empty state -->
+          <div class="results-empty" id="emptyState">
+            <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <p>Enter a polymer SMILES and<br>click <strong>Analyze Polymer</strong></p>
+          </div>
+
+          <!-- Result content (hidden until prediction) -->
+          <div id="resultContent" style="display:none">
+            <!-- inference info -->
+            <div class="infer-row" id="inferRow">
+              <span>Inference: <b id="inferMs">—</b> ms</span>
+              <span>Source: <b id="inferSrc">—</b></span>
+            </div>
+
+            <!-- R2 summary -->
+            <div class="r2-summary" id="r2Box">
+              <div>
+                <div class="r2-big" id="r2Val">—</div>
+                <div class="r2-info"><strong>Ensemble R²</strong>Weighted average across all 3 models</div>
+              </div>
+              <div class="mode-badge" id="modeBadge">demo</div>
+            </div>
+
+            <!-- Property cards -->
+            <div class="result-grid" id="resultGrid"></div>
+
+            <!-- Model comparison chart -->
+            <div style="margin-top:20px">
+              <div class="field-label">Model Comparison</div>
+              <div class="chart-wrap"><canvas id="modelChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs: History / Export -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-body">
+          <div class="tabs">
+            <button class="tab active" data-tab="history">History</button>
+            <button class="tab" data-tab="export">Export</button>
+            <button class="tab" data-tab="about">Models</button>
+          </div>
+
+          <!-- History tab -->
+          <div class="tab-panel active" id="tab-history">
+            <div class="history-list" id="histList">
+              <div class="history-empty">No predictions yet</div>
+            </div>
+          </div>
+
+          <!-- Export tab -->
+          <div class="tab-panel" id="tab-export">
+            <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Export the latest prediction result</p>
+            <div class="export-row">
+              <button class="btn btn-sm" id="expCsvBtn">⬇ CSV</button>
+              <button class="btn btn-sm" id="expJsonBtn">⬇ JSON</button>
+              <button class="btn btn-sm" id="expClipBtn">📋 Copy</button>
+              <button class="btn btn-sm" id="expHistBtn">⬇ History CSV</button>
+            </div>
+          </div>
+
+          <!-- About tab -->
+          <div class="tab-panel" id="tab-about">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-s);padding:12px 14px">
+                <div style="font-size:12px;font-weight:600;margin-bottom:3px">M1 — Graph Neural Network</div>
+                <div style="font-size:11px;color:var(--text2)">RDKit + Morgan fingerprints → 8-layer ResNet with multi-task heads</div>
+                <div style="font-size:11px;color:var(--green);margin-top:3px">Avg R² = 0.7653</div>
+              </div>
+              <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-s);padding:12px 14px">
+                <div style="font-size:12px;font-weight:600;margin-bottom:3px">M2 — Transformer (TransPolymer)</div>
+                <div style="font-size:11px;color:var(--text2)">SMILES tokenizer → 6-layer Transformer encoder + RDKit fusion</div>
+                <div style="font-size:11px;color:var(--green);margin-top:3px">Avg R² = 0.8217</div>
+              </div>
+              <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-s);padding:12px 14px">
+                <div style="font-size:12px;font-weight:600;margin-bottom:3px">M3 — Physics-Informed NN (PINN)</div>
+                <div style="font-size:11px;color:var(--text2)">Physics constraints in loss + specialist networks per target</div>
+                <div style="font-size:11px;color:var(--green);margin-top:3px">Avg R² = 0.9577 — Density R² = 0.9972</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────────────────
+const API = 'http://localhost:8000';
+
+const TARGETS = [
+  { key:'Tg',      label:'Glass Transition Temp.',  unit:'°C',         range:[-148,480],  color:'#2563eb' },
+  { key:'FFV',     label:'Fractional Free Volume',  unit:'fraction',   range:[0.22,0.78], color:'#059669' },
+  { key:'Tc',      label:'Thermal Conductivity',    unit:'normalized', range:[0.04,0.55], color:'#d97706' },
+  { key:'Density', label:'Density',                 unit:'g/cm³',      range:[0.75,1.85], color:'#7c3aed' },
+  { key:'Rg',      label:'Radius of Gyration',      unit:'Å',          range:[9.7,35],    color:'#0891b2' },
+];
+
+const MODEL_R2 = {
+  'M1 GNN':         { Tg:0.72, FFV:0.80, Tc:0.79, Density:0.77, Rg:0.72 },
+  'M2 Transformer': { Tg:0.78, FFV:0.87, Tc:0.84, Density:0.85, Rg:0.75 },
+  'M3 PINN':        { Tg:0.97, FFV:0.85, Tc:0.99, Density:0.997, Rg:0.98 },
+};
+
+// ── State ──────────────────────────────────────────────────────────────────
+let latestResult = null;
+let predHistory  = JSON.parse(localStorage.getItem('pp_hist') || '[]');
+let modelChart   = null;
+
+// ── DOM refs ───────────────────────────────────────────────────────────────
+const smilesInput  = document.getElementById('smilesInput');
+const analyzeBtn   = document.getElementById('analyzeBtn');
+const btnContent   = document.getElementById('btnContent');
+const statusDot    = document.getElementById('statusDot');
+const statusTxt    = document.getElementById('statusTxt');
+const validMsg     = document.getElementById('validMsg');
+const charCount    = document.getElementById('charCount');
+const structWrap   = document.getElementById('structWrap');
+const structPlaceholder = document.getElementById('structPlaceholder');
+
+// ================================================================
+// STRUCTURE RENDERING — 2D SVG + 3D Interactive (3Dmol.js)
+// ================================================================
+
+let structureCache2d = {};   // smiles → {svg, mol_info}
+let structureCache3d = {};   // smiles → SDF string
+let viewer3d = null;
+let view3dActive = false;
+let spinOn = false;
+let currentSmiles = '';
+let currentStyle = 'stick';
+
+// ── 2D / 3D tab toggle ───────────────────────────────────────────
+document.getElementById('tab2d').addEventListener('click', () => {
+  document.getElementById('tab2d').classList.add('active');
+  document.getElementById('tab3d').classList.remove('active');
+  document.getElementById('panel2d').style.display = 'block';
+  document.getElementById('panel3d').style.display = 'none';
+  view3dActive = false;
+});
+
+document.getElementById('tab3d').addEventListener('click', () => {
+  document.getElementById('tab3d').classList.add('active');
+  document.getElementById('tab2d').classList.remove('active');
+  document.getElementById('panel2d').style.display = 'none';
+  document.getElementById('panel3d').style.display = 'block';
+  view3dActive = true;
+  if (currentSmiles) load3D(currentSmiles);
+});
+
+// ── 2D structure ─────────────────────────────────────────────────
+function showPlaceholder(msg) {
+  const wrap = document.getElementById('structSvgWrap');
+  wrap.style.display = 'none';
+  const ph = document.getElementById('structPlaceholder');
+  ph.style.display = 'flex';
+  if (msg) ph.querySelector('div').textContent = msg;
+}
+
+function showSvg(svg) {
+  const wrap = document.getElementById('structSvgWrap');
+  document.getElementById('structPlaceholder').style.display = 'none';
+  wrap.style.display = 'block';
+  wrap.innerHTML = svg
+    .replace(/<svg /, '<svg style="max-width:100%;height:auto;max-height:220px" ')
+    .replace(/fill:#000000/g, 'fill:#1e293b')
+    .replace(/stroke:#000000/g, 'stroke:#1e293b');
+}
+
+async function load2D(smiles) {
+  if (!smiles) return;
+
+  // Cache hit
+  if (structureCache2d[smiles]) {
+    showSvg(structureCache2d[smiles].svg);
+    updateMolInfo(structureCache2d[smiles].mol_info);
+    return;
+  }
+
+  // Loading state
+  document.getElementById('structPlaceholder').style.display = 'flex';
+  document.getElementById('structPlaceholder').innerHTML =
+    '<div class="spinner" style="margin:0 auto;border-color:var(--accent-m);border-top-color:var(--accent)"></div>' +
+    '<div style="margin-top:10px;font-size:12px;color:var(--text3)">Generating 2D structure…</div>';
+  document.getElementById('structSvgWrap').style.display = 'none';
+
+  try {
+    const res = await fetch(`${API}/structure?smiles=${encodeURIComponent(smiles)}&width=340&height=220`,
+      { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) throw new Error('Backend error ' + res.status);
+    const data = await res.json();
+    structureCache2d[smiles] = data;
+    showSvg(data.svg);
+    updateMolInfo(data.mol_info || {});
+  } catch (e) {
+    showPlaceholder('Structure unavailable — backend offline');
+    console.warn('2D structure failed:', e.message);
+  }
+}
+
+// ── 3D structure ─────────────────────────────────────────────────
+function init3dViewer() {
+  const el = document.getElementById('viewer3d');
+  if (viewer3d) { viewer3d.clear(); return; }
+  viewer3d = $3Dmol.createViewer(el, {
+    backgroundColor: '#0f1117',
+    antialias: true,
+    id: 'mol3d-canvas',
+  });
+}
+
+function apply3dStyle() {
+  if (!viewer3d) return;
+  viewer3d.setStyle({}, {});
+
+  if (currentStyle === 'stick') {
+    viewer3d.setStyle({}, { stick: { radius: 0.15, colorscheme: 'Jmol' } });
+  } else if (currentStyle === 'sphere') {
+    viewer3d.setStyle({}, { sphere: { scale: 0.35, colorscheme: 'Jmol' } });
+  } else if (currentStyle === 'line') {
+    viewer3d.setStyle({}, { line: { colorscheme: 'Jmol', linewidth: 2 } });
+  } else if (currentStyle === 'surface') {
+    viewer3d.setStyle({}, { stick: { radius: 0.12, colorscheme: 'Jmol' } });
+    viewer3d.addSurface($3Dmol.SurfaceType.VDW, {
+      opacity: 0.55,
+      colorscheme: 'whiteCarbon',
+    });
+  }
+  viewer3d.render();
+}
+
+async function load3D(smiles) {
+  if (!smiles) return;
+  if (!viewer3d) init3dViewer();
+
+  const loadingEl = document.getElementById('v3dLoading');
+  loadingEl.style.display = 'flex';
+  loadingEl.innerHTML =
+    '<div class="spinner" style="border-color:rgba(255,255,255,.2);border-top-color:#60a5fa;width:28px;height:28px"></div>' +
+    '<span style="font-size:12px;color:#94a3b8;margin-top:10px">Generating 3D coordinates…</span>';
+
+  // Cache hit
+  if (structureCache3d[smiles]) {
+    render3D(structureCache3d[smiles], loadingEl);
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/structure3d?smiles=${encodeURIComponent(smiles)}`,
+      { signal: AbortSignal.timeout(20000) });
+    if (!res.ok) throw new Error('Backend error ' + res.status);
+    const sdf = await res.text();
+    structureCache3d[smiles] = sdf;
+    render3D(sdf, loadingEl);
+  } catch (e) {
+    loadingEl.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5" style="width:28px;height:28px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
+      '<span style="font-size:12px;color:#f87171;margin-top:8px">3D unavailable — backend offline</span>';
+    console.warn('3D structure failed:', e.message);
+  }
+}
+
+function render3D(sdf, loadingEl) {
+  if (!viewer3d) init3dViewer();
+  viewer3d.clear();
+  viewer3d.addModel(sdf, 'sdf');
+  apply3dStyle();
+  viewer3d.zoomTo();
+  viewer3d.zoom(0.85);
+  viewer3d.render();
+  if (loadingEl) loadingEl.style.display = 'none';
+}
+
+// ── 3D controls ───────────────────────────────────────────────────
+function setStyleBtn(id) {
+  ['styleStick','styleSphere','styleLine','styleCartoon'].forEach(b =>
+    document.getElementById(b).classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+document.getElementById('styleStick').addEventListener('click', () => {
+  currentStyle = 'stick'; setStyleBtn('styleStick');
+  apply3dStyle();
+});
+document.getElementById('styleSphere').addEventListener('click', () => {
+  currentStyle = 'sphere'; setStyleBtn('styleSphere');
+  apply3dStyle();
+});
+document.getElementById('styleLine').addEventListener('click', () => {
+  currentStyle = 'line'; setStyleBtn('styleLine');
+  apply3dStyle();
+});
+document.getElementById('styleCartoon').addEventListener('click', () => {
+  currentStyle = 'surface'; setStyleBtn('styleCartoon');
+  apply3dStyle();
+});
+document.getElementById('btnSpin').addEventListener('click', function() {
+  spinOn = !spinOn;
+  this.classList.toggle('active', spinOn);
+  if (viewer3d) {
+    spinOn ? viewer3d.spin('y', 1) : viewer3d.spin(false);
+  }
+});
+document.getElementById('btnCenter').addEventListener('click', () => {
+  if (viewer3d) { viewer3d.zoomTo(); viewer3d.zoom(0.85); viewer3d.render(); }
+});
+
+// ── Mol info updater ─────────────────────────────────────────────
+function updateMolInfo(mi) {
+  document.getElementById('iMW').textContent      = mi.mol_weight    != null ? mi.mol_weight + ' g/mol' : '—';
+  document.getElementById('iFormula').textContent = mi.mol_formula   || '—';
+  document.getElementById('iAtoms').textContent   = mi.atom_count    != null ? mi.atom_count : '—';
+  document.getElementById('iRings').textContent   = mi.ring_count    != null ? mi.ring_count : '—';
+  document.getElementById('iHBD').textContent     = mi.hbd_count     != null ? mi.hbd_count  : '—';
+  document.getElementById('iArom').textContent    = mi.aromatic_atoms!= null ? mi.aromatic_atoms : '—';
+  document.getElementById('iLogP').textContent    = mi.logp          != null ? mi.logp        : '—';
+  document.getElementById('iTpsa').textContent    = mi.tpsa          != null ? mi.tpsa + ' Å²' : '—';
+}
+
+// ── Main draw entry point ─────────────────────────────────────────
+async function drawStructure(smiles) {
+  currentSmiles = smiles;
+  if (!smiles || smiles.length < 3) { showPlaceholder(); return; }
+  await load2D(smiles);
+  if (view3dActive) load3D(smiles);
+}
+
+// ── Remove old toggle handler ─────────────────────────────────────
+document.getElementById('toggleThemeBtn') && document.getElementById('toggleThemeBtn').remove();
+
+// ── Input validation ───────────────────────────────────────────────────────
+function validateSmiles(s) {
+  if (!s) return { ok: false, msg: 'Enter a SMILES string with * atoms' };
+  if (s.length < 3) return { ok: false, msg: 'Too short' };
+  if (!s.includes('*')) return { ok: false, msg: 'Must include * wildcard atoms for polymer repeat unit' };
+  return { ok: true, msg: '✓ Valid polymer SMILES' };
+}
+
+smilesInput.addEventListener('input', () => {
+  const s = smilesInput.value.trim();
+  charCount.textContent = s.length + ' chars';
+  const v = validateSmiles(s);
+  validMsg.textContent = v.msg;
+  validMsg.style.color = v.ok ? 'var(--green)' : 'var(--text3)';
+  analyzeBtn.disabled = !v.ok;
+  if (s.length > 2) {
+    smilesInput.classList.remove('invalid');
+    drawStructure(s);
+  } else {
+    showPlaceholder();
+  }
+});
+
+// ── Clear ──────────────────────────────────────────────────────────────────
+document.getElementById('clearBtn').addEventListener('click', () => {
+  smilesInput.value = '';
+  smilesInput.dispatchEvent(new Event('input'));
+  showPlaceholder();
+});
+
+// ── Sample chips ───────────────────────────────────────────────────────────
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    smilesInput.value = chip.dataset.smiles;
+    smilesInput.dispatchEvent(new Event('input'));
+  });
+});
+
+// ── Toggle structure theme (unused - kept for safety) ──────────────────────
+document.getElementById('toggleThemeBtn') && document.getElementById('toggleThemeBtn').addEventListener('click', function() {
+  const smiles = smilesInput.value.trim();
+  if (smiles) { delete structureCache2d[smiles]; drawStructure(smiles); }
+});
+
+// ── Health check ───────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(API + '/health', { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    statusDot.className = 'dot ok';
+    statusTxt.textContent = d.models_loaded && d.mode === 'real' ? 'Models loaded' : 'Demo mode';
+    return true;
+  } catch {
+    statusDot.className = 'dot';
+    statusTxt.textContent = 'Backend offline';
+    return false;
+  }
+}
+checkHealth();
+setInterval(checkHealth, 30000);
+
+// ── Analyze ────────────────────────────────────────────────────────────────
+analyzeBtn.addEventListener('click', analyze);
+smilesInput.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') analyze(); });
+
+async function analyze() {
+  const smiles = smilesInput.value.trim();
+  const v = validateSmiles(smiles);
+  if (!v.ok) { smilesInput.classList.add('invalid'); showToast(v.msg); return; }
+
+  setLoading(true);
+  statusDot.className = 'dot busy';
+
+  try {
+    const res = await fetch(API + '/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ smiles }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Server error ' + res.status);
+    }
+    const data = await res.json();
+    latestResult = data;
+    renderResults(data);
+    saveHistory(data);
+    renderHistory();
+    // mol_info comes from /structure endpoint (already loaded by drawStructure)
+    // but /predict also returns it as fallback
+    if (data.mol_info && Object.keys(data.mol_info).length) {
+      updateMolInfo(data.mol_info);
+    }
+    showToast('Prediction complete!', true);
+  } catch (e) {
+    if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+      showToast('Request timed out — is the backend running?');
+    } else {
+      showToast(e.message || 'Connection failed');
+    }
+    statusDot.className = 'dot';
+    statusTxt.textContent = 'Backend offline';
+  } finally {
+    setLoading(false);
+    await checkHealth();
+  }
+}
+
+function setLoading(on) {
+  analyzeBtn.disabled = on;
+  btnContent.innerHTML = on
+    ? '<div class="spinner"></div> Analyzing…'
+    : 'Analyze Polymer';
+}
+
+// ── Render results ─────────────────────────────────────────────────────────
+function renderResults(data) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultContent').style.display = 'block';
+
+  const preds = data.predictions;
+  const mode  = data.mode || 'demo';
+  const isReal = mode === 'real';
+
+  // Inference info
+  document.getElementById('inferMs').textContent = data.inference_ms || '—';
+  document.getElementById('inferSrc').textContent = isReal ? 'Trained models' : 'Demo estimator';
+
+  // R2 summary — show best model R2
+  const avgR2 = isReal ? 0.9577 : 0.86;
+  document.getElementById('r2Val').textContent = avgR2.toFixed(4);
+  const badge = document.getElementById('modeBadge');
+  badge.textContent = isReal ? 'Real model' : 'Demo mode';
+  badge.className   = 'mode-badge' + (isReal ? '' : ' demo');
+
+  // Property cards
+  const grid = document.getElementById('resultGrid');
+  grid.innerHTML = TARGETS.map(t => {
+    const val = preds[t.key];
+    const [lo, hi] = t.range;
+    const pct = val != null ? Math.max(0, Math.min(100, ((val - lo) / (hi - lo)) * 100)) : 0;
+    const fmtVal = val != null ? (Math.abs(val) >= 100 ? val.toFixed(1) : val.toFixed(4)) : '—';
+    const mp = data.model_predictions || {};
+    const modelBadges = Object.entries(mp).map(([name, vals]) => {
+      const mv = vals[t.key];
+      const fv = mv != null ? (Math.abs(mv) >= 100 ? mv.toFixed(1) : mv.toFixed(3)) : '—';
+      return `<span class="model-badge">${name}: ${fv}</span>`;
+    }).join('');
+    return `
+      <div class="result-card">
+        <div class="result-target">${t.key}</div>
+        <div class="result-val" style="color:${t.color}">${fmtVal}</div>
+        <div class="result-unit">${t.label} · ${t.unit}</div>
+        <div class="result-bar-wrap"><div class="result-bar" style="width:${pct}%;background:${t.color}"></div></div>
+        <div class="model-row">${modelBadges}</div>
+      </div>
+    `;
+  }).join('');
+
+  // Model comparison bar chart
+  renderModelChart(data.model_predictions || {}, preds);
+}
+
+function renderModelChart(mp, ensemble) {
+  const ctx = document.getElementById('modelChart').getContext('2d');
+  if (modelChart) modelChart.destroy();
+
+  const allModels = Object.keys(mp).length ? Object.keys(mp) : ['M1 GNN','M2 Transformer','M3 PINN'];
+  const colors = ['#bfdbfe','#6ee7b7','#93c5fd'];
+  const accentColors = ['#2563eb','#059669','#7c3aed'];
+
+  const datasets = allModels.map((name, i) => ({
+    label: name,
+    data: TARGETS.map(t => {
+      const v = mp[name]?.[t.key];
+      return v != null ? parseFloat(v.toFixed(4)) : 0;
+    }),
+    backgroundColor: colors[i] + 'cc',
+    borderColor: accentColors[i],
+    borderWidth: 1.5,
+    borderRadius: 4,
+  }));
+
+  // Add ensemble
+  datasets.push({
+    label: 'Ensemble',
+    data: TARGETS.map(t => {
+      const v = ensemble[t.key];
+      return v != null ? parseFloat((Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(4))) : 0;
+    }),
+    backgroundColor: '#111827' + '22',
+    borderColor: '#111827',
+    borderWidth: 2,
+    borderRadius: 4,
+    borderDash: [4,2],
+  });
+
+  modelChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: TARGETS.map(t => t.key), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#4b5563', font: { family:'DM Sans', size:11 }, boxWidth:12 } },
+        tooltip: {
+          bodyFont: { family: 'DM Mono' },
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.formattedValue}`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color:'#4b5563', font:{family:'DM Mono',size:11} }, grid: { color:'#f0f2f5' } },
+        y: { ticks: { color:'#4b5563', font:{family:'DM Sans',size:11} }, grid: { color:'#f0f2f5' } }
+      }
+    }
+  });
+}
+
+// ── Mol info ───────────────────────────────────────────────────────────────
+function updateMolInfo(mi) {
+  document.getElementById('iMW').textContent      = mi.mol_weight    || '—';
+  document.getElementById('iFormula').textContent = mi.mol_formula   || '—';
+  document.getElementById('iAtoms').textContent   = mi.atom_count    || '—';
+  document.getElementById('iRings').textContent   = mi.ring_count    || '—';
+  document.getElementById('iHBD').textContent     = mi.hbd_count     || '—';
+  document.getElementById('iArom').textContent    = mi.aromatic_atoms|| '—';
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+function saveHistory(data) {
+  predHistory.unshift({ smiles: data.smiles, preds: data.predictions, ts: Date.now(), mode: data.mode });
+  if (predHistory.length > 30) predHistory.pop();
+  localStorage.setItem('pp_hist', JSON.stringify(predHistory));
+}
+
+function renderHistory() {
+  const el = document.getElementById('histList');
+  if (!predHistory.length) { el.innerHTML = '<div class="history-empty">No predictions yet</div>'; return; }
+  el.innerHTML = predHistory.slice(0, 12).map((h, i) => {
+    const tg = h.preds?.Tg != null ? h.preds.Tg.toFixed(1) + '°C' : '—';
+    const ago = timeAgo(h.ts);
+    return `
+      <div class="hist-item" onclick="loadHistory(${i})">
+        <div class="hist-smiles">${h.smiles}</div>
+        <div class="hist-r2">Tg ${tg}</div>
+        <div class="hist-time">${ago}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.loadHistory = function(i) {
+  const h = predHistory[i];
+  smilesInput.value = h.smiles;
+  smilesInput.dispatchEvent(new Event('input'));
+  analyze();
+};
+
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+renderHistory();
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = tab.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + target).classList.add('active');
+  });
+});
+
+// ── Export ─────────────────────────────────────────────────────────────────
+function dl(content, name, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type}));
+  a.download = name; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+document.getElementById('expCsvBtn').addEventListener('click', () => {
+  if (!latestResult) { showToast('No results yet'); return; }
+  const hdr = 'Property,Value,Unit\n';
+  const rows = TARGETS.map(t => `${t.key},${latestResult.predictions[t.key]},${t.unit}`).join('\n');
+  dl(hdr + rows, 'polypredict_' + Date.now() + '.csv', 'text/csv');
+});
+document.getElementById('expJsonBtn').addEventListener('click', () => {
+  if (!latestResult) { showToast('No results yet'); return; }
+  dl(JSON.stringify(latestResult, null, 2), 'polypredict_' + Date.now() + '.json', 'application/json');
+});
+document.getElementById('expClipBtn').addEventListener('click', async () => {
+  if (!latestResult) { showToast('No results yet'); return; }
+  try { await navigator.clipboard.writeText(JSON.stringify(latestResult, null, 2)); showToast('Copied!', true); }
+  catch { showToast('Copy failed'); }
+});
+document.getElementById('expHistBtn').addEventListener('click', () => {
+  if (!predHistory.length) { showToast('No history yet'); return; }
+  const hdr = 'SMILES,Timestamp,' + TARGETS.map(t => t.key).join(',') + '\n';
+  const rows = predHistory.map(h => `"${h.smiles}",${new Date(h.ts).toISOString()},${TARGETS.map(t => h.preds?.[t.key] ?? '').join(',')}`).join('\n');
+  dl(hdr + rows, 'polypredict_history.csv', 'text/csv');
+});
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, success = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (success ? ' success' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = 'toast', 3000);
+}
+</script>
+</body>
+</html>

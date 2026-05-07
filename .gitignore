@@ -1,0 +1,13 @@
+# Large model artifacts (>100 MB — exceed GitHub's file size limit)
+ALL_outputs.zip
+ALL_outputs/feats_train_v2.npy
+ALL_outputs/model3_all_outputs.zip
+
+# Python cache
+**/__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
